@@ -1,12 +1,13 @@
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { applicationSchema, type ApplicationFormValues } from './application-schema'
 import { useStatuses, usePriorities, useSources } from '@/hooks/use-reference-data'
+import { mapStatusesToOptions, mapPrioritiesToOptions, mapSourcesToOptions } from '@/lib/select-options'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Building2, MapPin, Link2, Tag, Flag, Globe, Calendar, Target, FileText, DollarSign, StickyNote } from 'lucide-react'
+import { Building2, Tag, Calendar, FileText } from 'lucide-react'
 
 interface ApplicationFormProps {
   defaultValues?: Partial<ApplicationFormValues>
@@ -23,6 +24,7 @@ export function ApplicationForm({ defaultValues, onSubmit, loading, submitLabel 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(applicationSchema),
@@ -93,29 +95,48 @@ export function ApplicationForm({ defaultValues, onSubmit, loading, submitLabel 
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Select
-            id="status_id"
-            label="Status"
-            error={errors.status_id?.message}
-            options={statuses.map((s) => ({ value: s.id, label: s.name }))}
-            placeholder="Select status"
-            {...register('status_id')}
+          <Controller
+            name="status_id"
+            control={control}
+            render={({ field }) => (
+              <AppSelect
+                label="Status"
+                placeholder="Select status"
+                options={mapStatusesToOptions(statuses)}
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.status_id?.message}
+                required
+              />
+            )}
           />
-          <Select
-            id="priority_id"
-            label="Priority"
-            error={errors.priority_id?.message}
-            options={priorities.map((p) => ({ value: p.id, label: p.name }))}
-            placeholder="Select priority"
-            {...register('priority_id')}
+          <Controller
+            name="priority_id"
+            control={control}
+            render={({ field }) => (
+              <AppSelect
+                label="Priority"
+                placeholder="Select priority"
+                options={mapPrioritiesToOptions(priorities)}
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.priority_id?.message}
+              />
+            )}
           />
-          <Select
-            id="source_id"
-            label="Source"
-            error={errors.source_id?.message}
-            options={sources.map((s) => ({ value: s.id, label: s.name }))}
-            placeholder="Select source"
-            {...register('source_id')}
+          <Controller
+            name="source_id"
+            control={control}
+            render={({ field }) => (
+              <AppSelect
+                label="Source"
+                placeholder="Select source"
+                options={mapSourcesToOptions(sources)}
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.source_id?.message}
+              />
+            )}
           />
         </div>
       </div>

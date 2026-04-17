@@ -54,19 +54,19 @@ export function ApplicationDetailPage() {
       <div className="flex items-center gap-2">
         <Link
           to="/applications"
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          className="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Applications
+          <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" /> Back to Applications
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md">
         <div className="h-2 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500" />
 
         <div className="p-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-md shadow-indigo-500/20">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-md shadow-indigo-500/20 transition-transform duration-300 hover:scale-105 hover:rotate-3">
                 {initials}
               </div>
               <div className="min-w-0">
@@ -141,7 +141,7 @@ export function ApplicationDetailPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center gap-1 border-b border-gray-100 px-4 py-2.5">
+        <div className="flex items-center gap-1 border-b border-gray-100 px-4 py-2.5 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.key
@@ -149,20 +149,20 @@ export function ApplicationDetailPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/25'
                     : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className={`h-3.5 w-3.5 transition-transform duration-200 ${active ? 'scale-110' : ''}`} />
                 {tab.label}
               </button>
             )
           })}
         </div>
 
-        <div className="p-5">
+        <div className="p-5 animate-fade-in" key={activeTab}>
           {activeTab === 'Actions'    && <ActionsPanel applicationId={app.id} />}
           {activeTab === 'Interviews' && <InterviewsPanel applicationId={app.id} />}
           {activeTab === 'Notes'      && <NotesPanel applicationId={app.id} />}

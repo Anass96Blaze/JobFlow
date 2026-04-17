@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useActions, useCreateAction, useUpdateAction, useDeleteAction } from './use-actions'
 import { useActionTypes } from '@/hooks/use-reference-data'
+import { mapActionTypesToOptions } from '@/lib/select-options'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -119,13 +120,12 @@ export function ActionsPanel({ applicationId }: ActionsPanelProps) {
       <Modal open={showForm} onClose={resetForm} title="Add Action">
         <form onSubmit={handleCreate} className="space-y-4">
           <Input id="action-title" label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-          <Select
-            id="action-type"
+          <AppSelect
             label="Type"
-            value={actionTypeId}
-            onChange={(e) => setActionTypeId(e.target.value)}
-            options={actionTypes.map((t) => ({ value: t.id, label: t.name }))}
             placeholder="Select type"
+            options={mapActionTypesToOptions(actionTypes)}
+            value={actionTypeId}
+            onValueChange={setActionTypeId}
             required
           />
           <Input id="action-due" label="Due Date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />

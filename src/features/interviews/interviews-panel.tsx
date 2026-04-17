@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useInterviews, useCreateInterview, useDeleteInterview } from './use-interviews'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { PageLoader } from '@/components/ui/spinner'
 import { formatDateTime } from '@/lib/utils'
+import { mapStringsToOptions } from '@/lib/select-options'
 import { Plus, Trash2, Video, Calendar } from 'lucide-react'
 
 const STAGES = ['Phone Screen', 'Technical', 'Behavioral', 'On-site', 'Final', 'Other']
@@ -69,7 +70,7 @@ export function InterviewsPanel({ applicationId }: InterviewsPanelProps) {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-br from-indigo-500 to-violet-500">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500">
             <Video className="h-4 w-4 text-white" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900">Interviews</h3>
@@ -111,11 +112,11 @@ export function InterviewsPanel({ applicationId }: InterviewsPanelProps) {
 
       <Modal open={showForm} onClose={resetForm} title="Add Interview">
         <form onSubmit={handleCreate} className="space-y-4">
-          <Select id="interview-stage" label="Stage" value={stage} onChange={(e) => setStage(e.target.value)} options={STAGES.map((s) => ({ value: s, label: s }))} placeholder="Select stage" required />
+          <AppSelect label="Stage" placeholder="Select stage" options={mapStringsToOptions(STAGES)} value={stage} onValueChange={setStage} required />
           <Input id="interview-at" label="Date & Time" type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} required />
-          <Select id="interview-format" label="Format" value={format} onChange={(e) => setFormat(e.target.value)} options={FORMATS.map((f) => ({ value: f, label: f }))} placeholder="Select format" />
+          <AppSelect label="Format" placeholder="Select format" options={mapStringsToOptions(FORMATS)} value={format} onValueChange={setFormat} />
           <Input id="interviewer-name" label="Interviewer Name" value={interviewerName} onChange={(e) => setInterviewerName(e.target.value)} />
-          <Select id="interview-outcome" label="Outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)} options={OUTCOMES.map((o) => ({ value: o, label: o }))} placeholder="Select outcome" />
+          <AppSelect label="Outcome" placeholder="Select outcome" options={mapStringsToOptions(OUTCOMES)} value={outcome} onValueChange={setOutcome} />
           <Textarea id="interview-notes" label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
           <div className="flex justify-end gap-3">
             <Button variant="secondary" type="button" onClick={resetForm}>Cancel</Button>

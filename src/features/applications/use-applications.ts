@@ -11,6 +11,14 @@ interface ApplicationFilters {
   sort_dir?: 'asc' | 'desc'
 }
 
+export interface NextActionSummary {
+  id: string
+  title: string
+  due_date: string | null
+  isOverdue: boolean
+  isDueSoon: boolean
+}
+
 export function useApplications(filters: ApplicationFilters = {}) {
   return useQuery<ApplicationWithRelations[]>({
     queryKey: ['applications', filters],
@@ -20,7 +28,9 @@ export function useApplications(filters: ApplicationFilters = {}) {
         .select('*, status:statuses(*), priority:priorities(*), source:sources(*)')
 
       if (filters.search) {
-        query = query.or(`company.ilike.%${filters.search}%,role.ilike.%${filters.search}%`)
+        query = query.or(
+          `company.ilike.%${filters.search}%,role.ilike.%${filters.search}%,location.ilike.%${filters.search}%`
+        )
       }
       if (filters.status_id) query = query.eq('status_id', filters.status_id)
       if (filters.priority_id) query = query.eq('priority_id', filters.priority_id)
@@ -33,6 +43,44 @@ export function useApplications(filters: ApplicationFilters = {}) {
       const { data, error } = await query
       if (error) throw error
       return data as ApplicationWithRelations[]
+    },
+  })
+}
+
+export function useNextActionsMap(applicationIds: string[]) {
+  const key = [...applicationIds].sort().join(',')
+  return useQuery<Record<string, NextActionSummary>>({
+    queryKey: ['next-actions-map', key],
+    enabled: applicationIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('actions')
+        .select('id, title, due_date, application_id')
+        .in('application_id', applicationIds)
+        .eq('completed', false)
+        .not('due_date', 'is', null)
+        .order('due_date', { ascending: true })
+      if (error) throw error
+
+      const now = new Date()
+      const soonMs = 3 * 24 * 60 * 60 * 1000
+      const soonDate = new Date(now.getTime() + soonMs)
+      const map: Record<string, NextActionSummary> = {}
+
+      type Row = { id: string; title: string; due_date: string | null; application_id: string }
+      for (const action of (data ?? []) as Row[]) {
+        if (!map[action.application_id] && action.due_date) {
+          const d = new Date(action.due_date)
+          map[action.application_id] = {
+            id: action.id,
+            title: action.title,
+            due_date: action.due_date,
+            isOverdue: d < now,
+            isDueSoon: d >= now && d <= soonDate,
+          }
+        }
+      }
+      return map
     },
   })
 }
@@ -97,6 +145,7 @@ export function useDeleteApplication() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['applications'] })
+      qc.invalidateQueries({ queryKey: ['next-actions-map'] })
     },
   })
 }
