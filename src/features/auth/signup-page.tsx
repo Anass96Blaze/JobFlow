@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from './auth-context'
+import { useAuth } from './use-auth'
 import { Zap, Mail, Lock, ArrowRight, CheckCircle } from 'lucide-react'
 
 export function SignupPage() {

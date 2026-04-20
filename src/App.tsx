@@ -11,6 +11,7 @@ import { ApplicationCreatePage } from '@/features/applications/application-creat
 import { ApplicationEditPage } from '@/features/applications/application-edit-page'
 import { ApplicationDetailPage } from '@/features/applications/application-detail-page'
 import { SettingsPage } from '@/features/settings/settings-page'
+import { LandingPage } from '@/features/landing/landing-page'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,8 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/welcome" element={<LandingPage />} />
+
             <Route element={<PublicOnlyRoute />}>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />

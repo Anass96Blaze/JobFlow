@@ -309,6 +309,50 @@ export interface Database {
           changed_at?: string
         }
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          application_id: string | null
+          action_id: string | null
+          type: 'ACTION_DUE_SOON' | 'ACTION_OVERDUE' | 'FOLLOW_UP_REMINDER' | 'INACTIVITY_REMINDER'
+          title: string
+          message: string
+          is_read: boolean
+          priority: number
+          due_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          application_id?: string | null
+          action_id?: string | null
+          type: 'ACTION_DUE_SOON' | 'ACTION_OVERDUE' | 'FOLLOW_UP_REMINDER' | 'INACTIVITY_REMINDER'
+          title: string
+          message: string
+          is_read?: boolean
+          priority?: number
+          due_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          application_id?: string | null
+          action_id?: string | null
+          type?: 'ACTION_DUE_SOON' | 'ACTION_OVERDUE' | 'FOLLOW_UP_REMINDER' | 'INACTIVITY_REMINDER'
+          title?: string
+          message?: string
+          is_read?: boolean
+          priority?: number
+          due_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -338,6 +382,8 @@ export type ActionType = Tables<'action_types'>
 export type Profile = Tables<'profiles'>
 export type Contact = Tables<'contacts'>
 export type StatusHistory = Tables<'status_history'>
+export type Notification = Tables<'notifications'>
+export type NotificationType = Notification['type']
 
 export interface ApplicationWithRelations extends Application {
   status?: Status

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/features/auth/auth-context'
+import { useAuth } from '@/features/auth/use-auth'
+import { NotificationBell } from '@/features/notifications/notification-bell'
+import { useNotificationBootstrap } from '@/features/notifications/use-bootstrap'
 import {
   LayoutDashboard,
   Briefcase,
@@ -28,6 +30,7 @@ const pageTitles: Record<string, string> = {
 
 export function AppLayout() {
   const { user, signOut } = useAuth()
+  useNotificationBootstrap()
   const navigate = useNavigate()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
@@ -171,6 +174,7 @@ export function AppLayout() {
             >
               Add Application
             </button>
+            <NotificationBell />
             <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50/80 px-3 py-1.5 transition-colors hover:bg-gray-100">
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-[10px] font-bold text-white">
                 {initials}

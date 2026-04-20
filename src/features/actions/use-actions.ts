@@ -1,6 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Action, InsertTables, UpdateTables } from '@/types/database'
+import { generateNotifications } from '@/features/notifications/generator'
+
+/**
+ * Re-run the notification generator in the background, then refresh
+ * the inbox query. Fire-and-forget — we don't block the UI on it.
+ */
+function refreshNotifications(qc: ReturnType<typeof useQueryClient>) {
+  generateNotifications()
+    .catch(() => {}) // non-fatal
+    .finally(() => qc.invalidateQueries({ queryKey: ['notifications'] }))
+}
 
 export function useActions(applicationId: string | undefined) {
   return useQuery<Action[]>({
@@ -28,29 +39,38 @@ export function useCreateAction() {
       if (error) throw error
       return data as Action
     },
-    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['actions', v.application_id] }) },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['actions', v.application_id] })
+      refreshNotifications(qc)
+    },
   })
 }
 
 export function useUpdateAction() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, application_id, ...values }: UpdateTables<'actions'> & { id: string; application_id: string }) => {
+    mutationFn: async ({ id, ...values }: UpdateTables<'actions'> & { id: string; application_id: string }) => {
       const { data, error } = await supabase.from('actions').update(values as never).eq('id', id).select().single()
       if (error) throw error
       return data as Action
     },
-    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['actions', v.application_id] }) },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['actions', v.application_id] })
+      refreshNotifications(qc)
+    },
   })
 }
 
 export function useDeleteAction() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, application_id: _appId }: { id: string; application_id: string }) => {
+    mutationFn: async ({ id }: { id: string; application_id: string }) => {
       const { error } = await supabase.from('actions').delete().eq('id', id)
       if (error) throw error
     },
-    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ['actions', v.application_id] }) },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['actions', v.application_id] })
+      refreshNotifications(qc)
+    },
   })
 }

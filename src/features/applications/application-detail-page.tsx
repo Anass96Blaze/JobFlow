@@ -1,37 +1,122 @@
-import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import {
+  ClipboardList, MessageSquare, Clock, Activity,
+  AlertTriangle, CalendarClock, Sparkles, Video, StickyNote, Plus,
+} from 'lucide-react'
+
 import { useApplication, useDeleteApplication } from './use-applications'
-import { ActionsPanel } from '@/features/actions/actions-panel'
-import { InterviewsPanel } from '@/features/interviews/interviews-panel'
-import { NotesPanel } from '@/features/notes/notes-panel'
+import { useActions, useUpdateAction } from '@/features/actions/use-actions'
+import { useInterviews } from '@/features/interviews/use-interviews'
+import { useNotes } from '@/features/notes/use-notes'
+import { useActivityLog } from '@/features/activity/use-activity'
+import { useActionTypes } from '@/hooks/use-reference-data'
+
+import { ActionsPanel, type ActionsPanelHandle } from '@/features/actions/actions-panel'
+import { InterviewsPanel, type InterviewsPanelHandle } from '@/features/interviews/interviews-panel'
+import { NotesPanel, type NotesPanelHandle } from '@/features/notes/notes-panel'
 import { ActivityTimeline } from '@/features/activity/activity-timeline'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PageLoader } from '@/components/ui/spinner'
 import { ErrorState } from '@/components/ui/error-state'
-import { formatDate, getStatusColor, getPriorityColor } from '@/lib/utils'
-import {
-  ArrowLeft, Pencil, Trash2, ExternalLink, MapPin, Calendar,
-  DollarSign, ClipboardList, MessageSquare, Clock, Activity,
-  Star, FileText,
-} from 'lucide-react'
+import { daysFromNow } from '@/lib/utils'
+import type { Action } from '@/types/database'
 
-const tabs = [
-  { key: 'Actions'    as const, icon: ClipboardList, label: 'Actions' },
-  { key: 'Interviews' as const, icon: Clock,         label: 'Interviews' },
-  { key: 'Notes'      as const, icon: MessageSquare, label: 'Notes' },
-  { key: 'Activity'   as const, icon: Activity,      label: 'Activity' },
-]
-type Tab = (typeof tabs)[number]['key']
+import { ApplicationHeroCard } from './components/application-hero-card'
+import { NextActionCard } from './components/next-action-card'
+import { DetailTabs, type DetailTab } from './components/detail-tabs'
+import type { Insight } from './components/insight-badge-row'
+import { ApplicationReminderBanner } from '@/features/notifications/application-reminder-banner'
+
+type TabKey = 'actions' | 'interviews' | 'notes' | 'activity'
+
+/**
+ * Pick the single most relevant action for the "Next Action" callout.
+ * Priority: overdue → soonest upcoming → any with no due date.
+ * Ignores completed actions.
+ */
+function pickNextAction(actions: Action[] | undefined): Action | null {
+  if (!actions?.length) return null
+  const open = actions.filter((a) => !a.completed)
+  if (!open.length) return null
+  const withDue = open
+    .filter((a) => a.due_date)
+    .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))
+  if (withDue.length) return withDue[0]
+  return open[0]
+}
 
 export function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+
   const { data: app, isLoading, error } = useApplication(id)
+  const { data: actions } = useActions(id)
+  const { data: interviews } = useInterviews(id)
+  const { data: notes } = useNotes(id)
+  const { data: activities } = useActivityLog(id)
+  const { data: actionTypes = [] } = useActionTypes()
+
   const deleteMutation = useDeleteApplication()
-  const [activeTab, setActiveTab] = useState<Tab>('Actions')
+  const updateActionMutation = useUpdateAction()
+
+  const [activeTab, setActiveTab] = useState<TabKey>('actions')
   const [showDelete, setShowDelete] = useState(false)
+
+  const actionsRef    = useRef<ActionsPanelHandle>(null)
+  const interviewsRef = useRef<InterviewsPanelHandle>(null)
+  const notesRef      = useRef<NotesPanelHandle>(null)
+
+  const nextAction = useMemo(() => pickNextAction(actions), [actions])
+
+  // Smart insights — computed from live data, subtle and actionable.
+  const insights: Insight[] = useMemo(() => {
+    const out: Insight[] = []
+    if (nextAction?.due_date) {
+      const d = daysFromNow(nextAction.due_date)
+      if (d !== null) {
+        if (d < 0)       out.push({ id: 'act-overdue', icon: <AlertTriangle className="h-3 w-3" />, label: `Action overdue by ${Math.abs(d)}d`, tone: 'danger' })
+        else if (d === 0) out.push({ id: 'act-today',   icon: <CalendarClock className="h-3 w-3" />, label: 'Action due today', tone: 'warning' })
+        else if (d <= 2)  out.push({ id: 'act-soon',    icon: <CalendarClock className="h-3 w-3" />, label: `Next action in ${d}d`, tone: 'warning' })
+      }
+    }
+    if (!interviews?.length) {
+      out.push({ id: 'no-iv', icon: <Video className="h-3 w-3" />, label: 'No interview scheduled', tone: 'neutral' })
+    } else {
+      const upcoming = interviews.filter((iv) => new Date(iv.interview_at) > new Date()).length
+      if (upcoming > 0) {
+        out.push({ id: 'iv-upcoming', icon: <Video className="h-3 w-3" />, label: `${upcoming} upcoming interview${upcoming > 1 ? 's' : ''}`, tone: 'info' })
+      }
+    }
+    if (app?.fit_score != null && app.fit_score >= 80) {
+      out.push({ id: 'hot', icon: <Sparkles className="h-3 w-3" />, label: 'High potential opportunity', tone: 'success' })
+    }
+    if (!notes?.length) {
+      out.push({ id: 'no-notes', icon: <StickyNote className="h-3 w-3" />, label: 'No notes yet', tone: 'neutral' })
+    }
+    return out
+  }, [nextAction, interviews, notes, app])
+
+  const tabs: DetailTab<TabKey>[] = useMemo(() => [
+    { key: 'actions',    label: 'Actions',    icon: ClipboardList,  count: actions?.length ?? 0 },
+    { key: 'interviews', label: 'Interviews', icon: Clock,          count: interviews?.length ?? 0 },
+    { key: 'notes',      label: 'Notes',      icon: MessageSquare,  count: notes?.length ?? 0 },
+    { key: 'activity',   label: 'Activity',   icon: Activity,       count: activities?.length ?? 0 },
+  ], [actions, interviews, notes, activities])
+
+  const openAddAction = () => {
+    setActiveTab('actions')
+    setTimeout(() => actionsRef.current?.openAddForm(), 0)
+  }
+  const openAddInterview = () => {
+    setActiveTab('interviews')
+    setTimeout(() => interviewsRef.current?.openAddForm(), 0)
+  }
+  const openAddNote = () => {
+    setActiveTab('notes')
+    setTimeout(() => notesRef.current?.focusComposer(), 50)
+  }
 
   const handleDelete = async () => {
     if (!id) return
@@ -39,134 +124,70 @@ export function ApplicationDetailPage() {
     navigate('/applications')
   }
 
+  const handleToggleNextAction = async (action: Action) => {
+    const completed = !action.completed
+    await updateActionMutation.mutateAsync({
+      id: action.id,
+      application_id: action.application_id,
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+    })
+  }
+
   if (isLoading) return <PageLoader />
   if (error || !app) return <ErrorState message="Application not found" />
 
-  const initials = app.company
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div className="flex items-center gap-2">
-        <Link
-          to="/applications"
-          className="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700"
-        >
-          <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" /> Back to Applications
-        </Link>
-      </div>
+    <div className="space-y-6 animate-fade-in">
+      <ApplicationReminderBanner applicationId={app.id} onFocusActions={() => setActiveTab('actions')} />
+      <ApplicationHeroCard
+        app={app}
+        insights={insights}
+        onDelete={() => setShowDelete(true)}
+      />
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md">
-        <div className="h-2 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500" />
-
-        <div className="p-6">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white shadow-md shadow-indigo-500/20 transition-transform duration-300 hover:scale-105 hover:rotate-3">
-                {initials}
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-xl font-bold text-gray-900">{app.company}</h1>
-                <p className="mt-0.5 text-base text-gray-600">{app.role}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-400">
-                  {app.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />{app.location}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5" />Added {formatDate(app.date_added)}
-                  </span>
-                  {app.date_applied && (
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" />Applied {formatDate(app.date_applied)}
-                    </span>
-                  )}
-                  {app.salary_range && (
-                    <span className="flex items-center gap-1">
-                      <DollarSign className="h-3.5 w-3.5" />{app.salary_range}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              {app.job_link && (
-                <a href={app.job_link} target="_blank" rel="noopener noreferrer">
-                  <Button variant="secondary" size="sm">
-                    <ExternalLink className="h-4 w-4" /> Job Post
-                  </Button>
-                </a>
-              )}
-              <Link to={`/applications/${app.id}/edit`}>
-                <Button variant="secondary" size="sm">
-                  <Pencil className="h-4 w-4" /> Edit
-                </Button>
-              </Link>
-              <Button variant="danger" size="sm" onClick={() => setShowDelete(true)}>
-                <Trash2 className="h-4 w-4" /> Delete
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
-            {app.status && <Badge color={getStatusColor(app.status.name)}>{app.status.name}</Badge>}
-            {app.priority && <Badge color={getPriorityColor(app.priority.name)}>{app.priority.name}</Badge>}
-            {app.source && <Badge color="gray">{app.source.name}</Badge>}
-            {app.fit_score !== null && app.fit_score !== undefined && (
-              <Badge color="indigo">
-                <Star className="h-3 w-3" /> Fit: {app.fit_score}%
-              </Badge>
-            )}
-            {app.cover_letter_required && (
-              <Badge color="orange">
-                <FileText className="h-3 w-3" /> Cover Letter Required
-              </Badge>
-            )}
-            {app.cv_version && <Badge color="teal">CV: {app.cv_version}</Badge>}
-          </div>
-
-          {app.notes && (
-            <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Notes</p>
-              <p className="mt-1 text-sm leading-relaxed text-gray-600">{app.notes}</p>
-            </div>
-          )}
+      {/* Quick-add row + Next Action */}
+      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-stretch">
+        <NextActionCard
+          action={nextAction}
+          actionTypes={actionTypes}
+          onToggleComplete={handleToggleNextAction}
+          onAddAction={openAddAction}
+        />
+        <div className="flex flex-wrap gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] md:flex-nowrap">
+          <button
+            onClick={openAddAction}
+            className="group inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold text-gray-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 md:flex-initial"
+          >
+            <Plus className="h-3.5 w-3.5 transition-transform duration-200 group-hover:rotate-90" />
+            Add action
+          </button>
+          <button
+            onClick={openAddInterview}
+            className="group inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold text-gray-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 md:flex-initial"
+          >
+            <Plus className="h-3.5 w-3.5 transition-transform duration-200 group-hover:rotate-90" />
+            Add interview
+          </button>
+          <button
+            onClick={openAddNote}
+            className="group inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold text-gray-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 md:flex-initial"
+          >
+            <Plus className="h-3.5 w-3.5 transition-transform duration-200 group-hover:rotate-90" />
+            Add note
+          </button>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center gap-1 border-b border-gray-100 px-4 py-2.5 overflow-x-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            const active = activeTab === tab.key
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/25'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                }`}
-              >
-                <Icon className={`h-3.5 w-3.5 transition-transform duration-200 ${active ? 'scale-110' : ''}`} />
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
+      {/* Tabs + content */}
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+        <DetailTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
-        <div className="p-5 animate-fade-in" key={activeTab}>
-          {activeTab === 'Actions'    && <ActionsPanel applicationId={app.id} />}
-          {activeTab === 'Interviews' && <InterviewsPanel applicationId={app.id} />}
-          {activeTab === 'Notes'      && <NotesPanel applicationId={app.id} />}
-          {activeTab === 'Activity'   && <ActivityTimeline applicationId={app.id} />}
+        <div className="p-5 sm:p-6 animate-fade-in" key={activeTab}>
+          {activeTab === 'actions'    && <ActionsPanel    ref={actionsRef}    applicationId={app.id} />}
+          {activeTab === 'interviews' && <InterviewsPanel ref={interviewsRef} applicationId={app.id} />}
+          {activeTab === 'notes'      && <NotesPanel      ref={notesRef}      applicationId={app.id} />}
+          {activeTab === 'activity'   && <ActivityTimeline                   applicationId={app.id} />}
         </div>
       </div>
 

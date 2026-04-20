@@ -35,7 +35,7 @@ export function useCreateInterview() {
 export function useDeleteInterview() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, application_id: _appId }: { id: string; application_id: string }) => {
+    mutationFn: async ({ id }: { id: string; application_id: string }) => {
       const { error } = await supabase.from('interviews').delete().eq('id', id)
       if (error) throw error
     },

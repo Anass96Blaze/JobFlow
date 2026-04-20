@@ -74,6 +74,97 @@ function ScrollDown() {
   )
 }
 
+function OptionItem({ option }: { option: SelectOption }) {
+  return (
+    <SelectPrimitive.Item
+      value={option.value}
+      className={cn(
+        'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm outline-none transition-colors duration-100',
+        'text-gray-700',
+        'data-[highlighted]:bg-indigo-50/70 data-[highlighted]:text-gray-900',
+        'data-[state=checked]:bg-indigo-50 data-[state=checked]:text-indigo-800',
+      )}
+    >
+      {option.icon && <span className="shrink-0 text-gray-500">{option.icon}</span>}
+      {option.color && <ColorDot color={option.color} />}
+      <SelectPrimitive.ItemText>
+        <span className="data-[state=checked]:font-medium">{option.label}</span>
+      </SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemIndicator className="ml-auto pl-2">
+        <Check className="h-3.5 w-3.5 text-indigo-600" strokeWidth={2.5} />
+      </SelectPrimitive.ItemIndicator>
+    </SelectPrimitive.Item>
+  )
+}
+
+function FilterOptionItem({ option }: { option: SelectOption }) {
+  return (
+    <SelectPrimitive.Item
+      value={option.value}
+      className={cn(
+        'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-2 text-xs outline-none transition-colors duration-100',
+        'text-gray-700',
+        'data-[highlighted]:bg-indigo-50/70 data-[highlighted]:text-gray-900',
+        'data-[state=checked]:bg-indigo-50 data-[state=checked]:text-indigo-800 data-[state=checked]:font-medium',
+      )}
+    >
+      {option.color && <ColorDot color={option.color} size="sm" />}
+      <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemIndicator className="ml-auto pl-2">
+        <Check className="h-3 w-3 text-indigo-600" strokeWidth={2.5} />
+      </SelectPrimitive.ItemIndicator>
+    </SelectPrimitive.Item>
+  )
+}
+
+function bucketByGroup(options: SelectOption[]) {
+  const groups: { name: string; items: SelectOption[] }[] = []
+  for (const o of options) {
+    const name = o.group ?? ''
+    let bucket = groups.find((g) => g.name === name)
+    if (!bucket) {
+      bucket = { name, items: [] }
+      groups.push(bucket)
+    }
+    bucket.items.push(o)
+  }
+  return groups
+}
+
+function renderItems(
+  options: SelectOption[],
+  Item: (props: { option: SelectOption }) => React.ReactElement,
+  labelPaddingClass: string,
+) {
+  if (!options.some((o) => o.group)) {
+    return options.map((o) => <Item key={o.value} option={o} />)
+  }
+  return bucketByGroup(options).map((g, idx) => (
+    <SelectPrimitive.Group key={g.name || `__ungrouped_${idx}`}>
+      {idx > 0 && <div className="my-1 mx-2 h-px bg-gray-100" />}
+      {g.name && (
+        <SelectPrimitive.Label
+          className={cn(
+            'text-[10px] font-semibold uppercase tracking-wider text-gray-400',
+            labelPaddingClass,
+          )}
+        >
+          {g.name}
+        </SelectPrimitive.Label>
+      )}
+      {g.items.map((o) => (
+        <Item key={o.value} option={o} />
+      ))}
+    </SelectPrimitive.Group>
+  ))
+}
+
+const renderGroupedItems = (opts: SelectOption[]) =>
+  renderItems(opts, OptionItem, 'px-3 pt-2 pb-1')
+
+const renderFilterGroupedItems = (opts: SelectOption[]) =>
+  renderItems(opts, FilterOptionItem, 'px-3 pt-1.5 pb-0.5')
+
 export function AppSelect({
   label,
   placeholder = 'Select…',
@@ -142,27 +233,7 @@ export function AppSelect({
           >
             <ScrollUp />
             <SelectPrimitive.Viewport className={cn(viewportClass, 'max-h-[280px]')}>
-              {options.map((option) => (
-                <SelectPrimitive.Item
-                  key={option.value}
-                  value={option.value}
-                  className={cn(
-                    'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm outline-none transition-colors duration-100',
-                    'text-gray-700',
-                    'data-[highlighted]:bg-indigo-50/70 data-[highlighted]:text-gray-900',
-                    'data-[state=checked]:bg-indigo-50 data-[state=checked]:text-indigo-800',
-                  )}
-                >
-                  {option.icon && <span className="shrink-0 text-gray-500">{option.icon}</span>}
-                  {option.color && <ColorDot color={option.color} />}
-                  <SelectPrimitive.ItemText>
-                    <span className="data-[state=checked]:font-medium">{option.label}</span>
-                  </SelectPrimitive.ItemText>
-                  <SelectPrimitive.ItemIndicator className="ml-auto pl-2">
-                    <Check className="h-3.5 w-3.5 text-indigo-600" strokeWidth={2.5} />
-                  </SelectPrimitive.ItemIndicator>
-                </SelectPrimitive.Item>
-              ))}
+              {renderGroupedItems(options)}
             </SelectPrimitive.Viewport>
             <ScrollDown />
           </SelectPrimitive.Content>
@@ -247,24 +318,7 @@ export function FilterSelect({ placeholder, options, value, onValueChange, icon 
 
             <div className="my-1 mx-2 h-px bg-gray-100" />
 
-            {options.map((option) => (
-              <SelectPrimitive.Item
-                key={option.value}
-                value={option.value}
-                className={cn(
-                  'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-2 text-xs outline-none transition-colors duration-100',
-                  'text-gray-700',
-                  'data-[highlighted]:bg-indigo-50/70 data-[highlighted]:text-gray-900',
-                  'data-[state=checked]:bg-indigo-50 data-[state=checked]:text-indigo-800 data-[state=checked]:font-medium',
-                )}
-              >
-                {option.color && <ColorDot color={option.color} size="sm" />}
-                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
-                <SelectPrimitive.ItemIndicator className="ml-auto pl-2">
-                  <Check className="h-3 w-3 text-indigo-600" strokeWidth={2.5} />
-                </SelectPrimitive.ItemIndicator>
-              </SelectPrimitive.Item>
-            ))}
+            {renderFilterGroupedItems(options)}
           </SelectPrimitive.Viewport>
           <ScrollDown />
         </SelectPrimitive.Content>

@@ -4,7 +4,7 @@ import { PageLoader } from '@/components/ui/spinner'
 import { ErrorState } from '@/components/ui/error-state'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/features/auth/auth-context'
+import { useAuth } from '@/features/auth/use-auth'
 import {
   Briefcase,
   Send,
